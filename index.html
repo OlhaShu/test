@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Solar System Explorer</title>
+  <style>
+    :root{
+      --bg:#070710;
+      --panel:#0f1116cc;
+      --text:#e6eef8;
+      --muted:#9aa7bd;
+      --accent:#ffd166;
+      --glass: rgba(255,255,255,0.04);
+    }
+    html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial}
+    body{background: radial-gradient(1200px 800px at 10% 10%, rgba(255,209,102,0.03), transparent), var(--bg); color:var(--text); overflow:hidden}
+    .app{
+      position:relative; height:100vh; width:100vw; display:block;
+    }
+    canvas{display:block; background:transparent; width:100%; height:100%}
+
+    /* Top-left control panel */
+    .panel{
+      position:absolute; left:18px; top:18px; min-width:280px; max-width:420px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+      border: 1px solid rgba(255,255,255,0.04); backdrop-filter: blur(8px);
+      padding:12px 14px; border-radius:12px; box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+    }
+    .panel h1{margin:0 0 8px 0;font-size:16px;letter-spacing:0.3px}
+    .row{display:flex;align-items:center;gap:8px}
+    .muted{color:var(--muted);font-size:13px}
+    input[type=range]{width:100%}
+    .controls{display:flex;gap:8px;margin-top:8px}
+    .btn{background:var(--glass);border:1px solid rgba(255,255,255,0.03);padding:8px 10px;border-radius:8px;color:var(--text);cursor:pointer;font-size:13px}
+    .btn:active{transform:translateY(1px)}
+    .small{font-size:12px;padding:6px 8px}
+    .footer{position:absolute; right:18px; bottom:18px; background:var(--panel); padding:10px;border-radius:10px; color:var(--muted); font-size:13px}
+
+    /* Info modal */
+    .info-card{position:absolute; left:18px; bottom:18px; max-width:360px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border-radius:12px; padding:12px; border:1px solid rgba(255,255,255,0.03)}
+    .info-title{font-weight:600;margin-bottom:6px}
+    .close-x{position:absolute; right:10px; top:8px; color:var(--muted); cursor:pointer}
+
+    /* Tooltip */
+    .tooltip{position:absolute;pointer-events:none;padding:6px 8px;background:#0b1220cc;border-radius:6px;border:1px solid rgba(255,255,255,0.04);font-size:12px;color:var(--text)}
+
+    /* Responsive */
+    @media (max-width:520px){ .panel{left:10px; right:10px; top:10px; min-width:auto;} }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <canvas id="scene"></canvas>
+
+    <div class="panel" id="panel" role="region" aria-label="Controls">
+      <h1>Solar System Explorer</h1>
+      <div class="muted">Візуалізація планет, орбіти та інтерактивні елементи</div>
+
+      <div style="margin-top:10px">
+        <label class="muted">Швидкість обертання орбіт <span id="speedVal">1.0×</span></label>
+        <input id="speed" type="range" min="0" max="4" step="0.01" value="1">
+      </div>
+
+      <div style="margin-top:8px" class="row">
+        <button id="playPause" class="btn small">Pause</button>
+        <button id="resetView" class="btn small">Reset View</button>
+        <label title="Показати орбіти" style="margin-left:auto" class="muted"><input id="showOrbits" type="checkbox" checked> Show Orbits</label>
+      </div>
+
+      <div style="margin-top:10px" class="muted">Інструкції: Клацніть планету → подробиці. Тягніть по канвасу для обертання, коліщатко миші — масштаб.</div>
+    </div>
+
+    <div class="footer">Drag to rotate · Wheel to zoom · Click a planet for info</div>
+
+    <div id="info" class="info-card" style="display:none" role="dialog" aria-labelledby="infoTitle">
+      <div class="close-x" id="closeInfo">✕</div>
+      <div class="info-title" id="infoTitle"></div>
+      <div id="infoBody" class="muted"></div>
+    </div>
+
+    <div id="tooltip" class="tooltip" style="display:none"></div>
+  </div>
+
+<script>
+// Single-file Solar System Explorer
+(() => {
+  const canvas = document.getElementById('scene');
+  const ctx = canvas.getContext('2d');
+  let DPR = Math.max(1, window.devicePixelRatio || 1);
+
+  // View state
+  let view = {
+    rotation: 0, // radians
+    scale: 1,
+    panX: 0, // unused but reserved
+    panY: 0
+  };
+
+  // Time / animation
+  let last = performance.now();
+  let running = true;
+  const baseSpeed = 0.0004; // base angular speed multiplier (radians per ms) for Earth-like orbit scaling
+  let speedMultiplier = 1.0;
+
+  // Planet data (scaled for visualization, not real units)
+  const planets = [
+    {name:'Mercury', color:'#9aa6b2', radius:3, orbit:40, period:88, info:'Small, rocky planet. Period: 88 days.'},
+    {name:'Venus', color:'#e8c58a', radius:6, orbit:60, period:225, info:'Thick atmosphere and surface hot as an oven.'},
+    {name:'Earth', color:'#4aa3ff', radius:6.5, orbit:80, period:365, info:'Our home. Liquid water and life.'},
+    {name:'Mars', color:'#ff7a50', radius:4.5, orbit:100, period:687, info:'Red planet, dusty and cold.'},
+    {name:'Jupiter', color:'#d2a679', radius:14, orbit:140, period:4333, info:'Gas giant, largest planet.'},
+    {name:'Saturn', color:'#f0dfb8', radius:12, orbit:180, period:10759, info:'Gas giant with visible rings.'},
+    {name:'Uranus', color:'#8be0e6', radius:9, orbit:220, period:30687, info:'Ice giant, tilted on its side.'},
+    {name:'Neptune', color:'#4a6eff', radius:9, orbit:260, period:60190, info:'Farthest classical planet; strong winds.'}
+  ];
+
+  // stateful angles
+  planets.forEach((p,i)=>{ p.angle = Math.random()*Math.PI*2; p.id = i; });
+
+  // UI elements
+  const speedEl = document.getElementById('speed');
+  const speedValEl = document.getElementById('speedVal');
+  const playPauseBtn = document.getElementById('playPause');
+  const resetViewBtn = document.getElementById('resetView');
+  const showOrbitsChk = document.getElementById('showOrbits');
+  const infoCard = document.getElementById('info');
+  const infoTitle = document.getElementById('infoTitle');
+  const infoBody = document.getElementById('infoBody');
+  const closeInfo = document.getElementById('closeInfo');
+  const tooltip = document.getElementById('tooltip');
+
+  // Resize canvas to fit
+  function resize(){
+    DPR = Math.max(1, window.devicePixelRatio || 1);
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    canvas.width = Math.floor(w * DPR);
+    canvas.height = Math.floor(h * DPR);
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // Coordinate helpers
+  function center(){ return {x: canvas.clientWidth/2 + view.panX, y: canvas.clientHeight/2 + view.panY}; }
+  function toScreen(pos){ // pos {x,y} in model coords
+    const c = center();
+    // apply rotation and scale around center
+    const x0 = pos.x * view.scale;
+    const y0 = pos.y * view.scale;
+    const cos = Math.cos(view.rotation), sin = Math.sin(view.rotation);
+    const x = x0 * cos - y0 * sin;
+    const y = x0 * sin + y0 * cos;
+    return {x:c.x + x, y:c.y + y};
+  }
+
+  // Draw scene
+  function draw(now){
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    ctx.clearRect(0,0,w,h);
+
+    const c = center();
+
+    // Sun
+    ctx.save();
+    ctx.beginPath();
+    const sunRadius = 18 * view.scale;
+    const grad = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, Math.max(100, sunRadius*6));
+    grad.addColorStop(0, 'rgba(255,210,102,1)');
+    grad.addColorStop(0.25, 'rgba(255,180,60,0.45)');
+    grad.addColorStop(1, 'rgba(255,180,60,0.02)');
+    ctx.fillStyle = grad;
+    ctx.arc(c.x, c.y, sunRadius, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    // Optionally draw orbits
+    if (showOrbitsChk.checked){
+      ctx.save();
+      ctx.globalAlpha = 0.35;
+      ctx.lineWidth = Math.max(1, 1 * view.scale);
+      ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+      planets.forEach(p=>{
+        ctx.beginPath();
+        ctx.ellipse(c.x, c.y, p.orbit * view.scale, p.orbit * view.scale, 0, 0, Math.PI*2);
+        ctx.stroke();
+      });
+      ctx.restore();
+    }
+
+    // Planets
+    planets.forEach(p=>{
+      const pos = {x: Math.cos(p.angle) * p.orbit, y: Math.sin(p.angle) * p.orbit};
+      const s = toScreen(pos);
+
+      // shadow
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(s.x+1.8*view.scale, s.y+1.8*view.scale, Math.max(1, p.radius*view.scale*0.9), 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.fill();
+      ctx.restore();
+
+      // planet
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, Math.max(1.5, p.radius * view.scale), 0, Math.PI*2);
+      // subtle gloss
+      ctx.fillStyle = p.color;
+      ctx.fill();
+      ctx.restore();
+
+      // label when zoomed enough
+      if (view.scale > 0.9){
+        ctx.save(); ctx.font = `${12*Math.min(2,view.scale)}px system-ui`; ctx.fillStyle = 'rgba(230,238,248,0.9)'; ctx.fillText(p.name, s.x + (p.radius+6)*view.scale, s.y - (p.radius+6)*view.scale); ctx.restore();
+      }
+    });
+
+    // HUD overlay: small legend
+    ctx.save();
+    ctx.font = '11px system-ui'; ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.fillText('Solar System Explorer', 12, canvas.clientHeight - 12);
+    ctx.restore();
+  }
+
+  // Animation loop
+  function tick(ts){
+    const dt = ts - last; last = ts;
+    if (running){
+      // update angles based on period and speed
+      planets.forEach(p=>{
+        const angularSpeed = baseSpeed * (365 / p.period); // scale so Earth ~ baseSpeed
+        p.angle += angularSpeed * dt * speedMultiplier;
+      });
+    }
+    draw(ts);
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+  // UI event handlers
+  speedEl.addEventListener('input', (e)=>{
+    speedMultiplier = Number(e.target.value);
+    speedValEl.textContent = speedMultiplier.toFixed(2) + '×';
+  });
+
+  playPauseBtn.addEventListener('click', ()=>{
+    running = !running; playPauseBtn.textContent = running ? 'Pause' : 'Play';
+  });
+
+  resetViewBtn.addEventListener('click', ()=>{
+    view.rotation = 0; view.scale = 1; view.panX = 0; view.panY = 0;
+  });
+
+  closeInfo.addEventListener('click', ()=>{ infoCard.style.display='none'; });
+
+  // Interaction: drag to rotate
+  let dragging = false; let dragStart = null; let startRot = 0;
+  canvas.addEventListener('pointerdown', (e)=>{
+    dragging = true;
+    canvas.setPointerCapture(e.pointerId);
+    dragStart = {x:e.clientX, y:e.clientY};
+    startRot = view.rotation;
+  });
+  canvas.addEventListener('pointermove', (e)=>{
+    // tooltip and hover detection
+    const rect = canvas.getBoundingClientRect();
+    const mouse = {x: e.clientX - rect.left, y: e.clientY - rect.top};
+    // compute nearest planet
+    let nearest = null; let dmin = 9999;
+    planets.forEach(p=>{
+      const pos = {x: Math.cos(p.angle) * p.orbit, y: Math.sin(p.angle) * p.orbit};
+      const s = toScreen(pos);
+      const dx = s.x - mouse.x; const dy = s.y - mouse.y; const d = Math.sqrt(dx*dx+dy*dy);
+      if (d < Math.max(6, p.radius*view.scale) + 6 && d < dmin){ dmin = d; nearest = p; }
+    });
+    if (nearest){
+      tooltip.style.display = 'block'; tooltip.style.left = (mouse.x+12) + 'px'; tooltip.style.top = (mouse.y+12) + 'px'; tooltip.textContent = nearest.name;
+    } else { tooltip.style.display = 'none'; }
+
+    if (!dragging) return;
+    const dx = e.clientX - dragStart.x;
+    const dy = e.clientY - dragStart.y;
+    // horizontal drag rotates view; vertical can change tilt (but we keep simple)
+    view.rotation = startRot + dx * 0.005;
+  });
+  canvas.addEventListener('pointerup', (e)=>{
+    dragging = false; canvas.releasePointerCapture && canvas.releasePointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointercancel', ()=>{ dragging = false; });
+
+  // Zoom with wheel
+  canvas.addEventListener('wheel', (e)=>{
+    e.preventDefault();
+    const delta = -e.deltaY * 0.001; // wheel up zoom in
+    const old = view.scale;
+    view.scale = Math.min(3.5, Math.max(0.4, view.scale * (1 + delta)));
+  }, {passive:false});
+
+  // Click to select planet
+  canvas.addEventListener('click', (e)=>{
+    const rect = canvas.getBoundingClientRect();
+    const mouse = {x: e.clientX - rect.left, y: e.clientY - rect.top};
+    // find clicked planet
+    let clicked = null;
+    planets.forEach(p=>{
+      const pos = {x: Math.cos(p.angle) * p.orbit, y: Math.sin(p.angle) * p.orbit};
+      const s = toScreen(pos);
+      const dx = s.x - mouse.x; const dy = s.y - mouse.y; const d = Math.sqrt(dx*dx+dy*dy);
+      if (d <= Math.max(4, p.radius * view.scale) + 3){ clicked = p; }
+    });
+    if (clicked){ showInfo(clicked); }
+  });
+
+  function showInfo(p){
+    infoTitle.textContent = p.name;
+    infoBody.innerHTML = `<div style="margin-bottom:6px">${p.info}</div>` +
+      `<div style="font-size:12px;color:var(--muted)">Orbit radius (visual): ${p.orbit}px<br>Relative size (visual): ${p.radius}px<br>Orbital period (days): ${p.period}</div>`;
+    infoCard.style.display = 'block';
+  }
+
+  // Accessibility: keyboard shortcuts
+  window.addEventListener('keydown', (e)=>{
+    if (e.key === ' '){ running = !running; playPauseBtn.textContent = running ? 'Pause' : 'Play'; }
+    if (e.key === '+' || e.key === '='){ view.scale = Math.min(3.5, view.scale * 1.1); }
+    if (e.key === '-' || e.key === '_'){ view.scale = Math.max(0.4, view.scale / 1.1); }
+  });
+
+  // Initial instructions modal could be shown here; we keep simple
+
+  // High-DPI redraw on visibility change
+  document.addEventListener('visibilitychange', ()=>{ if (!document.hidden) { last = performance.now(); } });
+
+  // Init values
+  view.scale = 1; view.rotation = -0.2;
+
+  // expose some methods to console for power users
+  window.__solar = { planets, resetView: ()=>{ view.rotation=0; view.scale=1 }, setSpeed: v=>{ speedMultiplier=v; speedEl.value=v; speedValEl.textContent=v+'×' } };
+})();
+</script>
+</body>
+</html>
