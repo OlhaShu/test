@@ -1,342 +1,513 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="uk">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Solar System Explorer</title>
-  <style>
-    :root{
-      --bg:#070710;
-      --panel:#0f1116cc;
-      --text:#e6eef8;
-      --muted:#9aa7bd;
-      --accent:#ffd166;
-      --glass: rgba(255,255,255,0.04);
-    }
-    html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial}
-    body{background: radial-gradient(1200px 800px at 10% 10%, rgba(255,209,102,0.03), transparent), var(--bg); color:var(--text); overflow:hidden}
-    .app{
-      position:relative; height:100vh; width:100vw; display:block;
-    }
-    canvas{display:block; background:transparent; width:100%; height:100%}
-
-    /* Top-left control panel */
-    .panel{
-      position:absolute; left:18px; top:18px; min-width:280px; max-width:420px;
-      background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
-      border: 1px solid rgba(255,255,255,0.04); backdrop-filter: blur(8px);
-      padding:12px 14px; border-radius:12px; box-shadow: 0 6px 20px rgba(0,0,0,0.6);
-    }
-    .panel h1{margin:0 0 8px 0;font-size:16px;letter-spacing:0.3px}
-    .row{display:flex;align-items:center;gap:8px}
-    .muted{color:var(--muted);font-size:13px}
-    input[type=range]{width:100%}
-    .controls{display:flex;gap:8px;margin-top:8px}
-    .btn{background:var(--glass);border:1px solid rgba(255,255,255,0.03);padding:8px 10px;border-radius:8px;color:var(--text);cursor:pointer;font-size:13px}
-    .btn:active{transform:translateY(1px)}
-    .small{font-size:12px;padding:6px 8px}
-    .footer{position:absolute; right:18px; bottom:18px; background:var(--panel); padding:10px;border-radius:10px; color:var(--muted); font-size:13px}
-
-    /* Info modal */
-    .info-card{position:absolute; left:18px; bottom:18px; max-width:360px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border-radius:12px; padding:12px; border:1px solid rgba(255,255,255,0.03)}
-    .info-title{font-weight:600;margin-bottom:6px}
-    .close-x{position:absolute; right:10px; top:8px; color:var(--muted); cursor:pointer}
-
-    /* Tooltip */
-    .tooltip{position:absolute;pointer-events:none;padding:6px 8px;background:#0b1220cc;border-radius:6px;border:1px solid rgba(255,255,255,0.04);font-size:12px;color:var(--text)}
-
-    /* Responsive */
-    @media (max-width:520px){ .panel{left:10px; right:10px; top:10px; min-width:auto;} }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вплив GPT-4 на юридичний аналіз</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .chart-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            padding: 32px;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            margin: 0 4px;
+        }
+        
+        .btn-active {
+            background: #2563eb;
+            color: white;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+        
+        .btn-inactive {
+            background: white;
+            color: #374151;
+            border: 2px solid #e5e7eb;
+        }
+        
+        .btn-inactive:hover {
+            background: #f9fafb;
+            border-color: #d1d5db;
+        }
+        
+        .btn-purple-active {
+            background: #7c3aed;
+            color: white;
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+        }
+        
+        .chart-section {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border-radius: 12px;
+            padding: 24px;
+            margin: 16px 0;
+            border: 1px solid #dbeafe;
+        }
+        
+        .chart-section.purple {
+            background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+            border-color: #e9d5ff;
+        }
+        
+        .bar-container {
+            height: 48px;
+            background: #e5e7eb;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            margin: 8px 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .bar-container:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .bar {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 12px;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            border-radius: 8px;
+            transition: all 0.5s ease;
+        }
+        
+        .bar-blue {
+            background: linear-gradient(90deg, #3b82f6, #2563eb);
+        }
+        
+        .bar-blue:hover {
+            background: linear-gradient(90deg, #2563eb, #1d4ed8);
+        }
+        
+        .bar-purple {
+            background: linear-gradient(90deg, #a855f7, #7c3aed);
+        }
+        
+        .bar-purple:hover {
+            background: linear-gradient(90deg, #7c3aed, #6d28d9);
+        }
+        
+        .bar-red {
+            background: linear-gradient(90deg, #ef4444, #dc2626);
+        }
+        
+        .zero-line {
+            position: absolute;
+            left: 33.33%;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #6b7280;
+        }
+        
+        .task-label {
+            width: 200px;
+            text-align: right;
+            padding-right: 24px;
+            font-weight: 600;
+            color: #374151;
+            font-size: 14px;
+        }
+        
+        .details-panel {
+            background: linear-gradient(135deg, #2563eb, #7c3aed);
+            color: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-top: 24px;
+            box-shadow: 0 10px 25px rgba(37, 99, 235, 0.3);
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border: 2px solid #e5e7eb;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stat-card.green {
+            border-color: #10b981;
+            background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+        }
+        
+        .stat-card.orange {
+            border-color: #f59e0b;
+            background: linear-gradient(135deg, #fffbeb, #fef3c7);
+        }
+        
+        .stat-card.indigo {
+            border-color: #6366f1;
+            background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+        }
+        
+        .warning-box {
+            background: linear-gradient(135deg, #fffbeb, #fef3c7);
+            border-left: 4px solid #f59e0b;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 32px;
+        }
+        
+        .grid-1 {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 32px;
+        }
+        
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+        }
+        
+        @media (max-width: 768px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+            .task-label {
+                width: 150px;
+                font-size: 12px;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div class="app" id="app">
-    <canvas id="scene"></canvas>
+    <div class="chart-container">
+        <!-- Header -->
+        <div style="margin-bottom: 32px;">
+            <h2 style="font-size: 24px; font-weight: bold; color: #1f2937; margin-bottom: 8px;">
+                Вплив використання GPT-4 на юридичний аналіз за завданнями
+            </h2>
+            <p style="font-size: 14px; color: #6b7280;">
+                Джерело: Choi et al., 2023 | Звіт AI Index 2024
+            </p>
+        </div>
 
-    <div class="panel" id="panel" role="region" aria-label="Controls">
-      <h1>Solar System Explorer</h1>
-      <div class="muted">Візуалізація планет, орбіти та інтерактивні елементи</div>
+        <!-- Controls -->
+        <div style="background: #f9fafb; padding: 20px; border-radius: 12px; margin-bottom: 32px;">
+            <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+                <label style="font-size: 14px; font-weight: 600; color: #374151;">Показати:</label>
+                <div>
+                    <button id="btn-both" class="btn btn-active" onclick="setFilter('both')">Обидва показники</button>
+                    <button id="btn-quality" class="btn btn-inactive" onclick="setFilter('quality')">Тільки якість</button>
+                    <button id="btn-time" class="btn btn-inactive" onclick="setFilter('time')">Тільки час</button>
+                </div>
+            </div>
+        </div>
 
-      <div style="margin-top:10px">
-        <label class="muted">Швидкість обертання орбіт <span id="speedVal">1.0×</span></label>
-        <input id="speed" type="range" min="0" max="4" step="0.01" value="1">
-      </div>
+        <!-- Charts Container -->
+        <div id="charts-container" class="grid-2">
+            <!-- Quality Chart -->
+            <div id="quality-chart" class="chart-section">
+                <h3 style="font-size: 18px; font-weight: 600; text-align: center; color: #374151; margin-bottom: 24px;">
+                    Покращення порівняно з контрольною групою (шкала 4.0)
+                </h3>
+                
+                <div style="margin-bottom: 24px;">
+                    <div style="display: flex; align-items: center; margin-bottom: 12px;" 
+                         onmouseover="showDetails('Складання договорів', 'Створення та редагування договорів показало найкращі результати', 0.24, 32.7)" 
+                         onmouseout="hideDetails()">
+                        <div class="task-label">Складання договорів</div>
+                        <div style="flex: 1; position: relative;">
+                            <div class="bar-container">
+                                <div class="zero-line"></div>
+                                <div class="bar bar-blue" style="width: 53.3%;">0.24</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; margin-bottom: 12px;"
+                         onmouseover="showDetails('Складання скарг', 'Підготовка юридичних скарг та документів', 0.17, 24.0)"
+                         onmouseout="hideDetails()">
+                        <div class="task-label">Складання скарг</div>
+                        <div style="flex: 1; position: relative;">
+                            <div class="bar-container">
+                                <div class="zero-line"></div>
+                                <div class="bar bar-blue" style="width: 45%;">0.17</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; margin-bottom: 12px;"
+                         onmouseover="showDetails('Довідник з трудового права', 'Робота з довідковими матеріалами та нормативами', 0.07, 21.3)"
+                         onmouseout="hideDetails()">
+                        <div class="task-label">Довідник з трудового права</div>
+                        <div style="flex: 1; position: relative;">
+                            <div class="bar-container">
+                                <div class="zero-line"></div>
+                                <div class="bar bar-blue" style="width: 38.9%;">0.07</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; margin-bottom: 12px;"
+                         onmouseover="showDetails('Клієнтська записка', 'Підготовка записок для клієнтів потребує додаткової уваги', -0.07, 11.9)"
+                         onmouseout="hideDetails()">
+                        <div class="task-label">Клієнтська записка</div>
+                        <div style="flex: 1; position: relative;">
+                            <div class="bar-container">
+                                <div class="zero-line"></div>
+                                <div class="bar bar-red" style="width: 7.8%; position: absolute; right: 66.7%;">-0.07</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; margin-top: 16px; padding: 0 200px; font-size: 12px; color: #6b7280; font-weight: 600;">
+                    <span>-0.10</span>
+                    <span>0.00</span>
+                    <span>0.10</span>
+                    <span>0.20</span>
+                </div>
+            </div>
 
-      <div style="margin-top:8px" class="row">
-        <button id="playPause" class="btn small">Pause</button>
-        <button id="resetView" class="btn small">Reset View</button>
-        <label title="Показати орбіти" style="margin-left:auto" class="muted"><input id="showOrbits" type="checkbox" checked> Show Orbits</label>
-      </div>
+            <!-- Time Chart -->
+            <div id="time-chart" class="chart-section purple">
+                <h3 style="font-size: 18px; font-weight: 600; text-align: center; color: #374151; margin-bottom: 24px;">
+                    Заощаджений час (%) порівняно з контрольною групою
+                </h3>
+                
+                <div style="margin-bottom: 24px;">
+                    <div style="display: flex; align-items: center; margin-bottom: 12px;"
+                         onmouseover="showDetails('Складання договорів', 'Створення та редагування договорів показало найкращі результати', 0.24, 32.7)"
+                         onmouseout="hideDetails()">
+                        <div class="task-label">Складання договорів</div>
+                        <div style="flex: 1;">
+                            <div class="bar-container">
+                                <div class="bar bar-purple" style="width: 93.4%;">32.7%</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; margin-bottom: 12px;"
+                         onmouseover="showDetails('Складання скарг', 'Підготовка юридичних скарг та документів', 0.17, 24.0)"
+                         onmouseout="hideDetails()">
+                        <div class="task-label">Складання скарг</div>
+                        <div style="flex: 1;">
+                            <div class="bar-container">
+                                <div class="bar bar-purple" style="width: 68.6%;">24.0%</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; margin-bottom: 12px;"
+                         onmouseover="showDetails('Довідник з трудового права', 'Робота з довідковими матеріалами та нормативами', 0.07, 21.3)"
+                         onmouseout="hideDetails()">
+                        <div class="task-label">Довідник з трудового права</div>
+                        <div style="flex: 1;">
+                            <div class="bar-container">
+                                <div class="bar bar-purple" style="width: 60.9%;">21.3%</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; margin-bottom: 12px;"
+                         onmouseover="showDetails('Клієнтська записка', 'Підготовка записок для клієнтів потребує додаткової уваги', -0.07, 11.9)"
+                         onmouseout="hideDetails()">
+                        <div class="task-label">Клієнтська записка</div>
+                        <div style="flex: 1;">
+                            <div class="bar-container">
+                                <div class="bar bar-purple" style="width: 34%;">11.9%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; margin-top: 16px; padding: 0 200px; font-size: 12px; color: #6b7280; font-weight: 600;">
+                    <span>0%</span>
+                    <span>10%</span>
+                    <span>20%</span>
+                    <span>30%</span>
+                </div>
+            </div>
+        </div>
 
-      <div style="margin-top:10px" class="muted">Інструкції: Клацніть планету → подробиці. Тягніть по канвасу для обертання, коліщатко миші — масштаб.</div>
+        <!-- Details Panel -->
+        <div id="details-panel" class="details-panel hidden">
+            <div style="display: flex; justify-content: space-between; align-items: start;">
+                <div style="flex: 1;">
+                    <h4 id="details-title" style="font-size: 20px; font-weight: bold; margin-bottom: 8px;"></h4>
+                    <p id="details-description" style="color: rgba(255,255,255,0.8); margin-bottom: 16px;"></p>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div style="background: rgba(255,255,255,0.2); padding: 16px; border-radius: 8px;">
+                            <h5 style="font-weight: 600; margin-bottom: 4px;">Покращення якості</h5>
+                            <p id="details-quality" style="font-size: 24px; font-weight: bold; margin: 0;"></p>
+                            <p style="font-size: 12px; color: rgba(255,255,255,0.8); margin: 0;">на шкалі 4.0</p>
+                        </div>
+                        
+                        <div style="background: rgba(255,255,255,0.2); padding: 16px; border-radius: 8px;">
+                            <h5 style="font-weight: 600; margin-bottom: 4px;">Заощадження часу</h5>
+                            <p id="details-time" style="font-size: 24px; font-weight: bold; margin: 0;"></p>
+                            <p style="font-size: 12px; color: rgba(255,255,255,0.8); margin: 0;">порівняно з контрольною групою</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <button onclick="hideDetails()" style="background: none; border: none; color: white; font-size: 24px; font-weight: bold; cursor: pointer; margin-left: 16px; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background 0.3s ease;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='none'">×</button>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="grid-3" style="margin-top: 32px;">
+            <div class="stat-card green">
+                <h4 style="font-size: 18px; font-weight: 600; color: #065f46; margin-bottom: 8px;">Середнє покращення якості</h4>
+                <p style="font-size: 36px; font-weight: bold; color: #059669; margin: 0;">0.10</p>
+            </div>
+            
+            <div class="stat-card orange">
+                <h4 style="font-size: 18px; font-weight: 600; color: #92400e; margin-bottom: 8px;">Середнє заощадження часу</h4>
+                <p style="font-size: 36px; font-weight: bold; color: #d97706; margin: 0;">22.5%</p>
+            </div>
+            
+            <div class="stat-card indigo">
+                <h4 style="font-size: 18px; font-weight: 600; color: #3730a3; margin-bottom: 8px;">Найефективніше завдання</h4>
+                <p style="font-size: 16px; font-weight: bold; color: #4f46e5; margin: 0;">Складання договорів</p>
+            </div>
+        </div>
+
+        <!-- Legend -->
+        <div style="display: flex; justify-content: center; gap: 24px; margin-top: 32px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; background: #eff6ff; padding: 12px 16px; border-radius: 8px; border: 1px solid #dbeafe;">
+                <div style="width: 16px; height: 16px; background: #2563eb; margin-right: 12px; border-radius: 4px;"></div>
+                <span style="font-weight: 600; color: #374151;">Покращення якості</span>
+            </div>
+            <div style="display: flex; align-items: center; background: #faf5ff; padding: 12px 16px; border-radius: 8px; border: 1px solid #e9d5ff;">
+                <div style="width: 16px; height: 16px; background: #7c3aed; margin-right: 12px; border-radius: 4px;"></div>
+                <span style="font-weight: 600; color: #374151;">Заощаджений час</span>
+            </div>
+        </div>
+
+        <!-- Conclusion -->
+        <div style="margin-top: 32px; padding: 24px; background: linear-gradient(135deg, #eff6ff, #dbeafe); border-radius: 12px; border: 1px solid #dbeafe;">
+            <p style="font-size: 14px; color: #374151; line-height: 1.6; margin-bottom: 16px;">
+                <span style="font-weight: bold; color: #1d4ed8;">Висновок:</span> Дослідження впливу ШІ на юридичний аналіз показало, що команди з доступом до GPT-4 
+                значно покращили ефективність і досягли помітного покращення якості в різних юридичних завданнях, особливо при складанні договорів. 
+                Порівняно з контрольною групою, спостерігались покращення як у якості роботи, так і в часовій ефективності в широкому спектрі завдань.
+            </p>
+            
+            <div class="warning-box">
+                <div style="display: flex; align-items: start;">
+                    <div style="color: #d97706; margin-right: 8px; font-size: 20px;">⚠️</div>
+                    <div>
+                        <h5 style="font-weight: bold; color: #92400e; margin: 0 0 4px 0;">Важливо пам'ятати</h5>
+                        <p style="color: #b45309; font-size: 14px; margin: 0;">
+                            При використанні ШІ в юридичній практиці необхідно завжди перевіряти результати через можливість галюцинацій моделі.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="footer">Drag to rotate · Wheel to zoom · Click a planet for info</div>
+    <script>
+        let currentFilter = 'both';
 
-    <div id="info" class="info-card" style="display:none" role="dialog" aria-labelledby="infoTitle">
-      <div class="close-x" id="closeInfo">✕</div>
-      <div class="info-title" id="infoTitle"></div>
-      <div id="infoBody" class="muted"></div>
-    </div>
+        function setFilter(filter) {
+            currentFilter = filter;
+            
+            // Update buttons
+            document.getElementById('btn-both').className = 'btn ' + (filter === 'both' ? 'btn-active' : 'btn-inactive');
+            document.getElementById('btn-quality').className = 'btn ' + (filter === 'quality' ? 'btn-active' : 'btn-inactive');
+            document.getElementById('btn-time').className = 'btn ' + (filter === 'time' ? (filter === 'time' ? 'btn-purple-active' : 'btn-inactive') : 'btn-inactive');
+            
+            // Update chart container layout
+            const container = document.getElementById('charts-container');
+            const qualityChart = document.getElementById('quality-chart');
+            const timeChart = document.getElementById('time-chart');
+            
+            if (filter === 'both') {
+                container.className = 'grid-2';
+                qualityChart.classList.remove('hidden');
+                timeChart.classList.remove('hidden');
+            } else if (filter === 'quality') {
+                container.className = 'grid-1';
+                qualityChart.classList.remove('hidden');
+                timeChart.classList.add('hidden');
+            } else if (filter === 'time') {
+                container.className = 'grid-1';
+                qualityChart.classList.add('hidden');
+                timeChart.classList.remove('hidden');
+            }
+        }
 
-    <div id="tooltip" class="tooltip" style="display:none"></div>
-  </div>
+        function showDetails(task, description, improvement, timeSaved) {
+            const panel = document.getElementById('details-panel');
+            const title = document.getElementById('details-title');
+            const desc = document.getElementById('details-description');
+            const quality = document.getElementById('details-quality');
+            const time = document.getElementById('details-time');
+            
+            title.textContent = task;
+            desc.textContent = description;
+            quality.textContent = (improvement >= 0 ? '+' : '') + improvement.toFixed(2);
+            time.textContent = timeSaved + '%';
+            
+            panel.classList.remove('hidden');
+        }
 
-<script>
-// Single-file Solar System Explorer
-(() => {
-  const canvas = document.getElementById('scene');
-  const ctx = canvas.getContext('2d');
-  let DPR = Math.max(1, window.devicePixelRatio || 1);
-
-  // View state
-  let view = {
-    rotation: 0, // radians
-    scale: 1,
-    panX: 0, // unused but reserved
-    panY: 0
-  };
-
-  // Time / animation
-  let last = performance.now();
-  let running = true;
-  const baseSpeed = 0.0004; // base angular speed multiplier (radians per ms) for Earth-like orbit scaling
-  let speedMultiplier = 1.0;
-
-  // Planet data (scaled for visualization, not real units)
-  const planets = [
-    {name:'Mercury', color:'#9aa6b2', radius:3, orbit:40, period:88, info:'Small, rocky planet. Period: 88 days.'},
-    {name:'Venus', color:'#e8c58a', radius:6, orbit:60, period:225, info:'Thick atmosphere and surface hot as an oven.'},
-    {name:'Earth', color:'#4aa3ff', radius:6.5, orbit:80, period:365, info:'Our home. Liquid water and life.'},
-    {name:'Mars', color:'#ff7a50', radius:4.5, orbit:100, period:687, info:'Red planet, dusty and cold.'},
-    {name:'Jupiter', color:'#d2a679', radius:14, orbit:140, period:4333, info:'Gas giant, largest planet.'},
-    {name:'Saturn', color:'#f0dfb8', radius:12, orbit:180, period:10759, info:'Gas giant with visible rings.'},
-    {name:'Uranus', color:'#8be0e6', radius:9, orbit:220, period:30687, info:'Ice giant, tilted on its side.'},
-    {name:'Neptune', color:'#4a6eff', radius:9, orbit:260, period:60190, info:'Farthest classical planet; strong winds.'}
-  ];
-
-  // stateful angles
-  planets.forEach((p,i)=>{ p.angle = Math.random()*Math.PI*2; p.id = i; });
-
-  // UI elements
-  const speedEl = document.getElementById('speed');
-  const speedValEl = document.getElementById('speedVal');
-  const playPauseBtn = document.getElementById('playPause');
-  const resetViewBtn = document.getElementById('resetView');
-  const showOrbitsChk = document.getElementById('showOrbits');
-  const infoCard = document.getElementById('info');
-  const infoTitle = document.getElementById('infoTitle');
-  const infoBody = document.getElementById('infoBody');
-  const closeInfo = document.getElementById('closeInfo');
-  const tooltip = document.getElementById('tooltip');
-
-  // Resize canvas to fit
-  function resize(){
-    DPR = Math.max(1, window.devicePixelRatio || 1);
-    const w = canvas.clientWidth, h = canvas.clientHeight;
-    canvas.width = Math.floor(w * DPR);
-    canvas.height = Math.floor(h * DPR);
-    ctx.setTransform(DPR,0,0,DPR,0,0);
-  }
-  window.addEventListener('resize', resize);
-  resize();
-
-  // Coordinate helpers
-  function center(){ return {x: canvas.clientWidth/2 + view.panX, y: canvas.clientHeight/2 + view.panY}; }
-  function toScreen(pos){ // pos {x,y} in model coords
-    const c = center();
-    // apply rotation and scale around center
-    const x0 = pos.x * view.scale;
-    const y0 = pos.y * view.scale;
-    const cos = Math.cos(view.rotation), sin = Math.sin(view.rotation);
-    const x = x0 * cos - y0 * sin;
-    const y = x0 * sin + y0 * cos;
-    return {x:c.x + x, y:c.y + y};
-  }
-
-  // Draw scene
-  function draw(now){
-    const w = canvas.clientWidth, h = canvas.clientHeight;
-    ctx.clearRect(0,0,w,h);
-
-    const c = center();
-
-    // Sun
-    ctx.save();
-    ctx.beginPath();
-    const sunRadius = 18 * view.scale;
-    const grad = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, Math.max(100, sunRadius*6));
-    grad.addColorStop(0, 'rgba(255,210,102,1)');
-    grad.addColorStop(0.25, 'rgba(255,180,60,0.45)');
-    grad.addColorStop(1, 'rgba(255,180,60,0.02)');
-    ctx.fillStyle = grad;
-    ctx.arc(c.x, c.y, sunRadius, 0, Math.PI*2);
-    ctx.fill();
-    ctx.restore();
-
-    // Optionally draw orbits
-    if (showOrbitsChk.checked){
-      ctx.save();
-      ctx.globalAlpha = 0.35;
-      ctx.lineWidth = Math.max(1, 1 * view.scale);
-      ctx.strokeStyle = 'rgba(255,255,255,0.03)';
-      planets.forEach(p=>{
-        ctx.beginPath();
-        ctx.ellipse(c.x, c.y, p.orbit * view.scale, p.orbit * view.scale, 0, 0, Math.PI*2);
-        ctx.stroke();
-      });
-      ctx.restore();
-    }
-
-    // Planets
-    planets.forEach(p=>{
-      const pos = {x: Math.cos(p.angle) * p.orbit, y: Math.sin(p.angle) * p.orbit};
-      const s = toScreen(pos);
-
-      // shadow
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(s.x+1.8*view.scale, s.y+1.8*view.scale, Math.max(1, p.radius*view.scale*0.9), 0, Math.PI*2);
-      ctx.fillStyle = 'rgba(0,0,0,0.25)';
-      ctx.fill();
-      ctx.restore();
-
-      // planet
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, Math.max(1.5, p.radius * view.scale), 0, Math.PI*2);
-      // subtle gloss
-      ctx.fillStyle = p.color;
-      ctx.fill();
-      ctx.restore();
-
-      // label when zoomed enough
-      if (view.scale > 0.9){
-        ctx.save(); ctx.font = `${12*Math.min(2,view.scale)}px system-ui`; ctx.fillStyle = 'rgba(230,238,248,0.9)'; ctx.fillText(p.name, s.x + (p.radius+6)*view.scale, s.y - (p.radius+6)*view.scale); ctx.restore();
-      }
-    });
-
-    // HUD overlay: small legend
-    ctx.save();
-    ctx.font = '11px system-ui'; ctx.fillStyle = 'rgba(255,255,255,0.06)';
-    ctx.fillText('Solar System Explorer', 12, canvas.clientHeight - 12);
-    ctx.restore();
-  }
-
-  // Animation loop
-  function tick(ts){
-    const dt = ts - last; last = ts;
-    if (running){
-      // update angles based on period and speed
-      planets.forEach(p=>{
-        const angularSpeed = baseSpeed * (365 / p.period); // scale so Earth ~ baseSpeed
-        p.angle += angularSpeed * dt * speedMultiplier;
-      });
-    }
-    draw(ts);
-    requestAnimationFrame(tick);
-  }
-  requestAnimationFrame(tick);
-
-  // UI event handlers
-  speedEl.addEventListener('input', (e)=>{
-    speedMultiplier = Number(e.target.value);
-    speedValEl.textContent = speedMultiplier.toFixed(2) + '×';
-  });
-
-  playPauseBtn.addEventListener('click', ()=>{
-    running = !running; playPauseBtn.textContent = running ? 'Pause' : 'Play';
-  });
-
-  resetViewBtn.addEventListener('click', ()=>{
-    view.rotation = 0; view.scale = 1; view.panX = 0; view.panY = 0;
-  });
-
-  closeInfo.addEventListener('click', ()=>{ infoCard.style.display='none'; });
-
-  // Interaction: drag to rotate
-  let dragging = false; let dragStart = null; let startRot = 0;
-  canvas.addEventListener('pointerdown', (e)=>{
-    dragging = true;
-    canvas.setPointerCapture(e.pointerId);
-    dragStart = {x:e.clientX, y:e.clientY};
-    startRot = view.rotation;
-  });
-  canvas.addEventListener('pointermove', (e)=>{
-    // tooltip and hover detection
-    const rect = canvas.getBoundingClientRect();
-    const mouse = {x: e.clientX - rect.left, y: e.clientY - rect.top};
-    // compute nearest planet
-    let nearest = null; let dmin = 9999;
-    planets.forEach(p=>{
-      const pos = {x: Math.cos(p.angle) * p.orbit, y: Math.sin(p.angle) * p.orbit};
-      const s = toScreen(pos);
-      const dx = s.x - mouse.x; const dy = s.y - mouse.y; const d = Math.sqrt(dx*dx+dy*dy);
-      if (d < Math.max(6, p.radius*view.scale) + 6 && d < dmin){ dmin = d; nearest = p; }
-    });
-    if (nearest){
-      tooltip.style.display = 'block'; tooltip.style.left = (mouse.x+12) + 'px'; tooltip.style.top = (mouse.y+12) + 'px'; tooltip.textContent = nearest.name;
-    } else { tooltip.style.display = 'none'; }
-
-    if (!dragging) return;
-    const dx = e.clientX - dragStart.x;
-    const dy = e.clientY - dragStart.y;
-    // horizontal drag rotates view; vertical can change tilt (but we keep simple)
-    view.rotation = startRot + dx * 0.005;
-  });
-  canvas.addEventListener('pointerup', (e)=>{
-    dragging = false; canvas.releasePointerCapture && canvas.releasePointerCapture(e.pointerId);
-  });
-  canvas.addEventListener('pointercancel', ()=>{ dragging = false; });
-
-  // Zoom with wheel
-  canvas.addEventListener('wheel', (e)=>{
-    e.preventDefault();
-    const delta = -e.deltaY * 0.001; // wheel up zoom in
-    const old = view.scale;
-    view.scale = Math.min(3.5, Math.max(0.4, view.scale * (1 + delta)));
-  }, {passive:false});
-
-  // Click to select planet
-  canvas.addEventListener('click', (e)=>{
-    const rect = canvas.getBoundingClientRect();
-    const mouse = {x: e.clientX - rect.left, y: e.clientY - rect.top};
-    // find clicked planet
-    let clicked = null;
-    planets.forEach(p=>{
-      const pos = {x: Math.cos(p.angle) * p.orbit, y: Math.sin(p.angle) * p.orbit};
-      const s = toScreen(pos);
-      const dx = s.x - mouse.x; const dy = s.y - mouse.y; const d = Math.sqrt(dx*dx+dy*dy);
-      if (d <= Math.max(4, p.radius * view.scale) + 3){ clicked = p; }
-    });
-    if (clicked){ showInfo(clicked); }
-  });
-
-  function showInfo(p){
-    infoTitle.textContent = p.name;
-    infoBody.innerHTML = `<div style="margin-bottom:6px">${p.info}</div>` +
-      `<div style="font-size:12px;color:var(--muted)">Orbit radius (visual): ${p.orbit}px<br>Relative size (visual): ${p.radius}px<br>Orbital period (days): ${p.period}</div>`;
-    infoCard.style.display = 'block';
-  }
-
-  // Accessibility: keyboard shortcuts
-  window.addEventListener('keydown', (e)=>{
-    if (e.key === ' '){ running = !running; playPauseBtn.textContent = running ? 'Pause' : 'Play'; }
-    if (e.key === '+' || e.key === '='){ view.scale = Math.min(3.5, view.scale * 1.1); }
-    if (e.key === '-' || e.key === '_'){ view.scale = Math.max(0.4, view.scale / 1.1); }
-  });
-
-  // Initial instructions modal could be shown here; we keep simple
-
-  // High-DPI redraw on visibility change
-  document.addEventListener('visibilitychange', ()=>{ if (!document.hidden) { last = performance.now(); } });
-
-  // Init values
-  view.scale = 1; view.rotation = -0.2;
-
-  // expose some methods to console for power users
-  window.__solar = { planets, resetView: ()=>{ view.rotation=0; view.scale=1 }, setSpeed: v=>{ speedMultiplier=v; speedEl.value=v; speedValEl.textContent=v+'×' } };
-})();
-</script>
+        function hideDetails() {
+            const panel = document.getElementById('details-panel');
+            panel.classList.add('hidden');
+        }
+    </script>
 </body>
 </html>
